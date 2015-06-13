@@ -28,4 +28,4 @@ requires:
   overload: '0'
   strict: '0'
   warnings: '0'
-version: '2.01'
+version: '2.02'
