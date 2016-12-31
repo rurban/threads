@@ -1,6 +1,6 @@
 Revision history for Perl extension threads.
 
-2.11 Sat Dec 31 17:36:17 2016
+2.12 Sat Dec 31 17:50:58 2016
 	- Fix Clang macro
 
 2.09 Fri May 20 18:58:20 2016
