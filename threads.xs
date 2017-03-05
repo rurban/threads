@@ -20,6 +20,7 @@
 #endif
 #ifdef HAS_PPPORT_H
 #  define NEED_PL_signals
+#  define NEED_newRV_noinc
 #  define NEED_sv_2pv_flags
 #  include "ppport.h"
 #  include "threads.h"
@@ -132,10 +133,15 @@ typedef struct {
     IV page_size;
 } my_pool_t;
 
-#define dMY_POOL \
-    SV *my_pool_sv = *hv_fetch(PL_modglobal, MY_POOL_KEY,               \
-                               sizeof(MY_POOL_KEY)-1, TRUE);            \
+#define dMY_POOL                                                    \
+    SV *my_pool_sv = *hv_fetch(PL_modglobal, MY_POOL_KEY,           \
+                               sizeof(MY_POOL_KEY)-1, TRUE);        \
     my_pool_t *my_poolp = INT2PTR(my_pool_t*, SvUV(my_pool_sv))
+
+#define MY_POOL_set                                                 \
+    my_pool_sv = *hv_fetch(PL_modglobal, MY_POOL_KEY,               \
+                           sizeof(MY_POOL_KEY)-1, TRUE);            \
+    my_poolp = INT2PTR(my_pool_t*, SvUV(my_pool_sv))
 
 #define MY_POOL (*my_poolp)
 
@@ -268,7 +274,12 @@ S_ithread_free(pTHX_ ithread *thread)
 #ifdef WIN32
     HANDLE handle;
 #endif
-    dMY_POOL;
+    SV *my_pool_sv = Nullsv;
+    my_pool_t *my_poolp = NULL;
+
+    if (PL_modglobal) {
+        MY_POOL_set;
+    }
 
     if (! (thread->state & PERL_ITHR_NONVIABLE)) {
         assert(thread->count > 0);
@@ -285,13 +296,15 @@ S_ithread_free(pTHX_ ithread *thread)
     assert(thread->tid != 0);
 
     /* Remove from circular list of threads */
-    MUTEX_LOCK(&MY_POOL.create_destruct_mutex);
+    if (my_poolp)
+        MUTEX_LOCK(&MY_POOL.create_destruct_mutex);
     assert(thread->prev && thread->next);
     thread->next->prev = thread->prev;
     thread->prev->next = thread->next;
     thread->next = NULL;
     thread->prev = NULL;
-    MUTEX_UNLOCK(&MY_POOL.create_destruct_mutex);
+    if (my_poolp)
+        MUTEX_UNLOCK(&MY_POOL.create_destruct_mutex);
 
     /* Thread is now disowned */
     MUTEX_LOCK(&thread->mutex);
@@ -318,9 +331,11 @@ S_ithread_free(pTHX_ ithread *thread)
      * Otherwise, MY_POOL and global state such as PL_op_mutex may get
      * freed while we're still using it.
      */
-    MUTEX_LOCK(&MY_POOL.create_destruct_mutex);
-    MY_POOL.total_threads--;
-    MUTEX_UNLOCK(&MY_POOL.create_destruct_mutex);
+    if (my_poolp) {
+        MUTEX_LOCK(&MY_POOL.create_destruct_mutex);
+        MY_POOL.total_threads--;
+        MUTEX_UNLOCK(&MY_POOL.create_destruct_mutex);
+    }
 }
 
 
@@ -1016,10 +1031,8 @@ S_ithread_create(
     MUTEX_UNLOCK(&my_pool->create_destruct_mutex);
     return (thread);
 
-#if defined(__clang__) || defined(__clang)
     CLANG_DIAG_IGNORE(-Wthread-safety);
     /* warning: mutex 'thread->mutex' is not held on every path through here [-Wthread-safety-analysis] */
-#endif
 }
 #if defined(__clang__) || defined(__clang)
 CLANG_DIAG_RESTORE;
@@ -1493,9 +1506,7 @@ ithread_kill(...)
         MUTEX_UNLOCK(&thread->mutex);
 
         if (no_handler) {
-            Perl_croak(aTHX_ "Signal %s received in thread %" UVuf
-                             ", but no signal handler set.",
-                             sig_name, thread->tid);
+            Perl_croak(aTHX_ "Signal %s received in thread %"UVuf", but no signal handler set.", sig_name, thread->tid);
         }
 
         /* Return the thread to allow for method chaining */
@@ -1819,7 +1830,6 @@ BOOT:
     SV *my_pool_sv = *hv_fetch(PL_modglobal, MY_POOL_KEY,
                                sizeof(MY_POOL_KEY)-1, TRUE);
     my_pool_t *my_poolp = (my_pool_t*)SvPVX(newSV(sizeof(my_pool_t)-1));
-
     MY_CXT_INIT;
 
     Zero(my_poolp, 1, my_pool_t);
