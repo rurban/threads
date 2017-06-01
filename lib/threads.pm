@@ -5,7 +5,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '2.15';
+our $VERSION = '2.16';
 my $XS_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -133,7 +133,7 @@ threads - Perl interpreter-based threads
 
 =head1 VERSION
 
-This document describes threads version 2.15
+This document describes threads version 2.16
 
 =head1 WARNING
 
