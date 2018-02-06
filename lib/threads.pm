@@ -950,6 +950,36 @@ C<chdir()>) will affect all the threads in the application.
 On MSWin32, each thread maintains its own the current working directory
 setting.
 
+=item Locales
+
+Prior to Perl 5.28 or cperl 5.24 locales could not be used with
+threads, due to various race conditions.  Starting with Perl 5.28 on
+systems that implement thread-safe locale functions, threads can be
+used even on perl5 with some caveats. Previously only with cperl,
+but perl5 still has many unsolved issues.
+This includes Windows starting with Visual Studio 2005, and systems
+compatible with POSIX 2008.  See L<perllocale/Multi-threaded
+operation>.
+
+Each thread (except the main thread) is started using the C locale.  The main
+thread is started like all other Perl programs; see L<perllocale/ENVIRONMENT>.
+You can switch locales in any thread as often as you like.
+
+If you want to inherit the parent thread's locale, you can, in the parent, set
+a variable like so:
+
+    $foo = POSIX::setlocale(LC_ALL, NULL);
+
+and then pass to threads->create() a sub that closes over C<$foo>.  Then, in
+the child, you say
+
+    POSIX::setlocale(LC_ALL, $foo);
+
+Or you can use the facilities in L<threads::shared> to pass C<$foo>;
+or if the environment hasn't changed, in the child, do
+
+    POSIX::setlocale(LC_ALL, "");
+
 =item Environment variables
 
 Currently, on all platforms except MSWin32, all I<system> calls (e.g., using

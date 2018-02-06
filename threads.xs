@@ -36,6 +36,11 @@
 #  endif
 #endif
 
+#if PERL_VERSION < 28
+#define thread_locale_init()
+#define thread_locale_term()
+#endif
+
 #ifndef CLANG_DIAG_IGNORE
 # define CLANG_DIAG_IGNORE(x)
 # define CLANG_DIAG_RESTORE
@@ -595,6 +600,8 @@ S_ithread_run(void * arg)
     S_set_sigmask(&thread->initial_sigmask);
 #endif
 
+    thread_locale_init();
+
     PL_perl_destruct_level = 2;
 
     {
@@ -679,6 +686,8 @@ S_ithread_run(void * arg)
     }
     MUTEX_UNLOCK(&thread->mutex);
     MUTEX_UNLOCK(&MY_POOL.create_destruct_mutex);
+
+    thread_locale_term();
 
     /* Exit application if required */
     if (exit_app) {
