@@ -80,6 +80,7 @@ WriteMakefile(
         ('PL_FILES' => { })            : ()),
     ((ExtUtils::MakeMaker->VERSION() gt '6.30') ?
         ('LICENSE'  => 'perl')         : ()),
+    'SIGN'          => 1
 );
 
 # Additional 'make' targets
