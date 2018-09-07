@@ -35,6 +35,10 @@
 #    define PERL_UNUSED_RESULT(v) ((void)(v))
 #  endif
 #endif
+#ifndef CLANG_DIAG_RESTORE
+#define CLANG_DIAG_IGNORE
+#define CLANG_DIAG_RESTORE
+#endif
 
 #ifdef USE_ITHREADS
 
@@ -1034,10 +1038,7 @@ S_ithread_create(
     CLANG_DIAG_IGNORE(-Wthread-safety);
     /* warning: mutex 'thread->mutex' is not held on every path through here [-Wthread-safety-analysis] */
 }
-/* perl.h defines CLANG_DIAG_* but only in 5.24+ */
-#if defined(CLANG_DIAG_RESTORE)
 CLANG_DIAG_RESTORE
-#endif
 
 #endif /* USE_ITHREADS */
 
